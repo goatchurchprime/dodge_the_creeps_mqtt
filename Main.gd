@@ -3,9 +3,13 @@ extends Node
 export(PackedScene) var mob_scene
 var score
 
+var topicscoreboard = "godot/creeps/message"
+
 func _ready():
 	randomize()
-
+	$mqtt.set_last_will(topicscoreboard, "Creeps disconnected")
+	yield($mqtt.connect_to_server(), "completed")
+	$mqtt.publish(topicscoreboard, "Creeps connected")
 
 func game_over():
 	$ScoreTimer.stop()
@@ -13,7 +17,7 @@ func game_over():
 	$HUD.show_game_over()
 	$Music.stop()
 	$DeathSound.play()
-
+	$mqtt.publish(topicscoreboard, "Game over")	
 
 func new_game():
 	get_tree().call_group("mobs", "queue_free")
@@ -22,6 +26,7 @@ func new_game():
 	$StartTimer.start()
 	$HUD.update_score(score)
 	$HUD.show_message("Get Ready")
+	$mqtt.publish(topicscoreboard, "Get Ready")	
 	$Music.play()
 
 
@@ -52,6 +57,7 @@ func _on_MobTimer_timeout():
 func _on_ScoreTimer_timeout():
 	score += 1
 	$HUD.update_score(score)
+	$mqtt.publish(topicscoreboard, "Score: %d" % score)	
 
 
 func _on_StartTimer_timeout():
