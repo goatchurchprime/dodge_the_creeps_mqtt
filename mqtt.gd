@@ -33,8 +33,6 @@ var lw_msg = null
 var lw_qos = 0
 var lw_retain = false
 
-var _timer = null
-
 signal received_message(topic, message)
 
 func get_data_bytes_async(n, client=null):
@@ -42,6 +40,7 @@ func get_data_bytes_async(n, client=null):
 	var timestep = 0.2
 	if client == null:
 		client = self.client
+	yield(get_tree(), "idle_frame") 
 	while client.get_available_bytes() < n:
 		yield(get_tree().create_timer(timestep), "timeout")
 		timeout -= timestep
@@ -53,6 +52,7 @@ func get_data_bytes_async(n, client=null):
 func _ready():
 	if client_id == "":
 		client_id = OS.get_unique_id()
+
 
 func _recv_len():
 	var n = 0
@@ -159,22 +159,13 @@ func connect_to_server(clean_session=true):
 		push_error(data[3])
 
 	self.client = lclient
-	
-	# Setup timer to check for incoming messages
-	_timer = Timer.new()
-	add_child(_timer)
-
-	_timer.connect("timeout", self, "check_msg")
-	_timer.set_wait_time(1.0)
-	_timer.set_one_shot(false) # Make sure it loops
-	_timer.start()
-
+	$check_msg_timer.start()
 	return data[2] & 1
 
 func disconnect_from_server():
 	self.client.put_u16(0xE000)
 	self.client.disconnect_from_host()
-	_timer.stop()
+	$check_msg_timer.stop()
 	
 func ping():
 	self.client.put_u16(0xC000)
@@ -213,7 +204,6 @@ func publish(topic, msg, retain=false, qos=0):
 		pkt.append(self.pid & 0xFF)
 
 	pkt.append_array(msg.to_ascii())
-	
 	self.client.put_data(pkt)
 	
 	if qos == 1:
@@ -245,30 +235,44 @@ func subscribe(topic, qos=0):
 	
 	self.client.put_data(msg)
 	
-	while 1:
+	while 0:
 		var op = self.wait_msg()
 		if op == 0x90:
 			var ret = yield(get_data_bytes_async(4), "completed")
 			var error = ret[0]
 			assert(error == 0)
 			var data = ret[1]
-			assert(data[1] == (self.pid >> 8)  and data[2] == (self.pid & 0x0F))
+			assert(data[1] == (self.pid >> 8) and data[2] == (self.pid & 0x0F))
 			if data[3] == 0x80:
 				push_error(data[3])
 			return
+
+var in_wait_msg = false
+func _on_Timer_timeout():
+	if in_wait_msg:
+		return
+	if(self.client == null):
+		return
+	if(!self.client.is_connected_to_host()):
+		return
+	if(self.client.get_available_bytes() <= 0):
+		return
+	in_wait_msg = true
+	while self.client.get_available_bytes() > 0:
+		yield(wait_msg(), "completed")
+	in_wait_msg = false
+	
 
 # Wait for a single incoming MQTT message and process it.
 # Subscribed messages are delivered to a callback previously
 # set by .set_callback() method. Other (internal) MQTT
 # messages processed internally.
 func wait_msg():
-	
+	yield(get_tree(), "idle_frame") 
 	if(self.client == null):
 		return
-		
 	if(!self.client.is_connected_to_host()):
 		return
-		
 	if(self.client.get_available_bytes() <= 0):
 		return
 		
@@ -292,8 +296,9 @@ func wait_msg():
 	assert(error == 0)
 	var topic = ret[1].get_string_from_ascii()
 	sz -= topic_len + 2
+	var pid
 	if op & 6:
-		var pid = self.sock.get_u16()
+		pid = self.sock.get_u16()
 		sz -= 2
 	ret  = yield(get_data_bytes_async(sz), "completed")
 	error = ret[0]
@@ -306,13 +311,11 @@ func wait_msg():
 #	self.cb(topic, msg)
 	if op & 6 == 2:
 		var pkt = PoolByteArray()
-		# Must be an easier way of doing this...
 		pkt.append(0x40);
 		pkt.append(0x02);
-		pkt.append(0x00);
-		pkt.append(0x00);
-#		struct.pack_into("!H", pkt, 2, pid)
-#		self.sock.write(pkt)
+		pkt.append(pid >> 8);
+		pkt.append(pid & 0xFF);
+		self.sock.write(pkt)
 	elif op & 6 == 4:
 		assert(0)
 

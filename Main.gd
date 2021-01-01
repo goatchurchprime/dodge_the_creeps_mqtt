@@ -10,7 +10,12 @@ func _ready():
 	$mqtt.set_last_will(topicscoreboard, "Creeps disconnected")
 	yield($mqtt.connect_to_server(), "completed")
 	$mqtt.publish(topicscoreboard, "Creeps connected")
+	$mqtt.subscribe("godot/creeps/lux")
 
+func _on_mqtt_received_message(topic, message):
+	print("tt ", topic, " ", message)
+	$ColorRect.color.r = clamp(float(message)/100, 0, 1)
+	
 func game_over():
 	$ScoreTimer.stop()
 	$MobTimer.stop()
@@ -28,6 +33,7 @@ func new_game():
 	$HUD.show_message("Get Ready")
 	$mqtt.publish(topicscoreboard, "Get Ready")	
 	$Music.play()
+
 
 
 func _on_MobTimer_timeout():
@@ -63,3 +69,5 @@ func _on_ScoreTimer_timeout():
 func _on_StartTimer_timeout():
 	$MobTimer.start()
 	$ScoreTimer.start()
+
+
