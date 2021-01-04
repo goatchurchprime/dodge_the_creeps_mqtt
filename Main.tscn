@@ -28,7 +28,7 @@ __meta__ = {
 [node name="Player" parent="." instance=ExtResource( 3 )]
 
 [node name="MobTimer" type="Timer" parent="."]
-wait_time = 0.5
+wait_time = 1.407
 
 [node name="ScoreTimer" type="Timer" parent="."]
 
@@ -54,6 +54,7 @@ stream = ExtResource( 6 )
 
 [node name="mqtt" type="Node" parent="."]
 script = ExtResource( 7 )
+server = "mosquitto.doesliverpool.xyz"
 
 [node name="check_msg_timer" type="Timer" parent="mqtt"]
 wait_time = 0.17

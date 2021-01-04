@@ -9,6 +9,20 @@ func _ready():
 	screen_size = get_viewport_rect().size
 	hide()
 
+var topicwheels = "godot/creeps/wheels"
+onready var mqtt = get_node("../mqtt")
+func _input(event):
+	var wheelmsg = ""
+	if event.is_action_pressed("move_left"):
+		wheelmsg = "800 1 0 800 1 0 50"
+	if event.is_action_pressed("move_right"):
+		wheelmsg = "800 0 1 800 0 1 50"
+	if event.is_action_pressed("move_up"):
+		wheelmsg = "1023 0 1 1023 1 0 200"
+	if event.is_action_pressed("move_down"):
+		wheelmsg = "800 1 0 800 0 1 200"
+	if wheelmsg:
+		mqtt.publish(topicwheels, wheelmsg)
 
 func _process(delta):
 	var velocity = Vector2.ZERO # The player's movement vector.
