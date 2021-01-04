@@ -8,8 +8,8 @@ func show_message(text):
 	$MessageTimer.start()
 
 
-func show_game_over():
-	show_message("Game Over")
+func show_game_over(extramsg):
+	show_message("Game Over\n%s"%extramsg)
 	yield($MessageTimer, "timeout")
 	$MessageLabel.text = "Dodge the\nCreeps"
 	$MessageLabel.show()
